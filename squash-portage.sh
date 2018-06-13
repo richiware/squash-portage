@@ -5,11 +5,11 @@ dt=`date +%Y%m%d`
 overlay_mounted=0;
 
 die() {
-	echo "Script failed: $@";
-	umount /var/tmp/oldportage 2>/dev/null;
-	umount /var/tmp/newportage 2>/dev/null;
-	[ "$overlay_mounted" ] && umount /usr/portage;
-	exit 1;
+    echo "Script failed: $@";
+    umount /var/tmp/oldportage 2>/dev/null;
+    umount /var/tmp/newportage 2>/dev/null;
+    [ "$overlay_mounted" ] && umount /usr/portage;
+    exit 1;
 }
 
 which mksquashfs >/dev/null || die "mksquashfs command not found";
@@ -22,29 +22,29 @@ mount -t tmpfs none /var/tmp/newportage || die "Can't mount tmpfs at /var/tmp/ne
 mkdir /var/tmp/newportage/rw /var/tmp/newportage/work
 
 if [ -e "$SQUASHFS_DIR/portage.sqsh" ]; then
-	mount -o loop,ro "$SQUASHFS_DIR/portage.sqsh" /var/tmp/oldportage || die "Can't mount portage squashfile at /var/tmp/oldportage";
+    mount -o loop,ro "$SQUASHFS_DIR/portage.sqsh" /var/tmp/oldportage || die "Can't mount portage squashfile at /var/tmp/oldportage";
 else
-	echo "Warning: no $SQUASHFS_DIR/portage.sqsh, using current /usr/portage as-is.";
-	mount --bind /usr/portage /var/tmp/oldportage || die "Can't bind-mount /usr/portage to /var/tmp/oldportage";
+    echo "Warning: no $SQUASHFS_DIR/portage.sqsh, using current /usr/portage as-is.";
+    mount --bind /usr/portage /var/tmp/oldportage || die "Can't bind-mount /usr/portage to /var/tmp/oldportage";
 fi
 
 if grep unionfs /proc/filesystems >/dev/null; then
-	mount -t unionfs -o dirs=/var/tmp/newportage/rw=rw:/usr/portage=ro none /usr/portage || die "Can't create overlay on /usr/portage";
+    mount -t unionfs -o dirs=/var/tmp/newportage/rw=rw:/usr/portage=ro none /usr/portage || die "Can't create overlay on /usr/portage";
 elif grep overlayfs /proc/filesystems >/dev/null; then
-	mount -t overlayfs -o lowerdir=/var/tmp/oldportage,upperdir=/var/tmp/newportage/rw none /usr/portage || die "Can't create overlay on /usr/portage";
+    mount -t overlayfs -o lowerdir=/var/tmp/oldportage,upperdir=/var/tmp/newportage/rw none /usr/portage || die "Can't create overlay on /usr/portage";
 elif grep overlay /proc/filesystems >/dev/null; then
-	mount -t overlay -o lowerdir=/var/tmp/oldportage,upperdir=/var/tmp/newportage/rw,workdir=/var/tmp/newportage/work none /usr/portage || die "Can't create overlay on /usr/portage";
+    mount -t overlay -o lowerdir=/var/tmp/oldportage,upperdir=/var/tmp/newportage/rw,workdir=/var/tmp/newportage/work none /usr/portage || die "Can't create overlay on /usr/portage";
 else
-	die "Require unionfs or overlayfs, and neither listed in /proc/filesystems";
+    die "Require unionfs or overlayfs, and neither listed in /proc/filesystems";
 fi
 overlay_mounted=1;
 
-emerge --sync || die "Emerge --sync failed";
+emaint sync $@ || die "emaint sync failed";
 
 if [ -f "$SQUASHFS_DIR/portage-${dt}.sqsh" ]; then
-	echo "Warning: $SQUASHFS_DIR/portage-${dt}.sqsh already exists!";
-	mv "$SQUASHFS_DIR/portage-${dt}.sqsh" "$SQUASHFS_DIR/portage-${dt}.sqsh.old" || die "Failed to move $SQUASHFS_DIR/portage-${dt}.sqsh";
-	echo "Moved to $SQUASHFS_DIR/portage-${dt}.sqsh.old";
+    echo "Warning: $SQUASHFS_DIR/portage-${dt}.sqsh already exists!";
+    mv "$SQUASHFS_DIR/portage-${dt}.sqsh" "$SQUASHFS_DIR/portage-${dt}.sqsh.old" || die "Failed to move $SQUASHFS_DIR/portage-${dt}.sqsh";
+    echo "Moved to $SQUASHFS_DIR/portage-${dt}.sqsh.old";
 fi
 mksquashfs /usr/portage "$SQUASHFS_DIR/portage-${dt}.sqsh" || die "mksquashfs failed";
 chmod 444 "$SQUASHFS_DIR/portage-${dt}.sqsh"
